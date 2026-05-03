@@ -1,0 +1,53 @@
+import streamlit as st
+import cv2
+from ultralytics import YOLO
+
+# -----------------------------
+# PAGE SETUP
+# -----------------------------
+st.set_page_config(page_title="YOLOv8 Detection", layout="wide")
+st.title("🎥 Live Object Detection & Tracking")
+
+# -----------------------------
+# LOAD MODEL
+# -----------------------------
+@st.cache_resource
+def load_model():
+    return YOLO("yolov8n.pt")
+
+model = load_model()
+
+# -----------------------------
+# SIDEBAR
+# -----------------------------
+conf = st.sidebar.slider("Confidence", 0.1, 1.0, 0.5)
+run = st.checkbox("Start Camera")
+
+# -----------------------------
+# CAMERA
+# -----------------------------
+frame_placeholder = st.empty()
+
+camera = cv2.VideoCapture(1)
+if run:
+    st.info("Camera running... Press Stop in checkbox to end.")
+
+    while run:
+        ret, frame = camera.read()
+        if not ret:
+            st.error("Camera not working")
+            break
+
+        results = model.track(frame, persist=True, conf=conf)
+        annotated = results[0].plot()
+
+        frame_placeholder.image(annotated, channels="BGR")
+
+        # refresh checkbox state
+        if not st.session_state.get("run", True):
+            break
+
+else:
+    st.warning("Camera OFF")
+
+camera.release()
